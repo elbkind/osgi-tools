@@ -38,10 +38,10 @@ import org.osgi.framework.Bundle;
 
 /**
  * Class copied from hibernate-osgi.
- * 
+ *
  * Custom OSGI ClassLoader helper which knows all the "interesting" class loaders and bundles. Encapsulates the OSGi related CL
  * capabilities.
- * 
+ *
  * @author Brett Meyer
  * @author Tim Ward
  */
@@ -49,18 +49,18 @@ public class OsgiClassLoader extends ClassLoader {
 
     // Leave these as Sets -- addClassLoader or addBundle may be called more
     // than once if a SF or EMF is closed and re-created.
-    private Set<ClassLoader> classLoaders = new HashSet<ClassLoader>();
-    private Set<Bundle> bundles = new HashSet<Bundle>();
+    private final Set<ClassLoader> classLoaders = new HashSet<ClassLoader>();
+    private final Set<Bundle> bundles = new HashSet<Bundle>();
 
-    private Map<String, Class<?>> classCache = new HashMap<String, Class<?>>();
-    private Map<String, URL> resourceCache = new HashMap<String, URL>();
+    private final Map<String, Class<?>> classCache = new HashMap<String, Class<?>>();
+    private final Map<String, URL> resourceCache = new HashMap<String, URL>();
 
 
     /**
      * Load the class and break on first found match. DO NOT use ClassLoader#parent, which is typically the SystemClassLoader for
      * most containers. Instead, allow the ClassNotFoundException to be thrown. ClassLoaderServiceImpl will check the
      * SystemClassLoader later on.
-     * 
+     *
      * TODO: Should this throw a different exception or warn if multiple classes were found? Naming collisions can and do happen in
      * OSGi...
      */
@@ -68,26 +68,26 @@ public class OsgiClassLoader extends ClassLoader {
     @SuppressWarnings("rawtypes")
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         synchronized (getClassLoadingLock(name)) {
-            if (classCache.containsKey(name)) {
-                return classCache.get(name);
+            if (this.classCache.containsKey(name)) {
+                return this.classCache.get(name);
             }
 
-            for (Bundle bundle : bundles) {
+            for (Bundle bundle : this.bundles) {
                 try {
                     final Class clazz = bundle.loadClass(name);
                     if (clazz != null) {
-                        classCache.put(name, clazz);
+                        this.classCache.put(name, clazz);
                         return clazz;
                     }
                 } catch (Exception ignore) {
                 }
             }
 
-            for (ClassLoader classLoader : classLoaders) {
+            for (ClassLoader classLoader : this.classLoaders) {
                 try {
                     final Class clazz = classLoader.loadClass(name);
                     if (clazz != null) {
-                        classCache.put(name, clazz);
+                        this.classCache.put(name, clazz);
                         return clazz;
                     }
                 } catch (Exception ignore) {
@@ -104,26 +104,26 @@ public class OsgiClassLoader extends ClassLoader {
      */
     @Override
     protected URL findResource(String name) {
-        if (resourceCache.containsKey(name)) {
-            return resourceCache.get(name);
+        if (this.resourceCache.containsKey(name)) {
+            return this.resourceCache.get(name);
         }
 
-        for (Bundle bundle : bundles) {
+        for (Bundle bundle : this.bundles) {
             try {
                 final URL resource = bundle.getResource(name);
                 if (resource != null) {
-                    resourceCache.put(name, resource);
+                    this.resourceCache.put(name, resource);
                     return resource;
                 }
             } catch (Exception ignore) {
             }
         }
 
-        for (ClassLoader classLoader : classLoaders) {
+        for (ClassLoader classLoader : this.classLoaders) {
             try {
                 final URL resource = classLoader.getResource(name);
                 if (resource != null) {
-                    resourceCache.put(name, resource);
+                    this.resourceCache.put(name, resource);
                     return resource;
                 }
             } catch (Exception ignore) {
@@ -136,18 +136,17 @@ public class OsgiClassLoader extends ClassLoader {
 
     /**
      * Load the class and break on first found match.
-     * 
+     *
      * Note: Since they're Enumerations, do not cache these results!
-     * 
+     *
      * TODO: Should this throw a different exception or warn if multiple classes were found? Naming collisions can and do happen in
      * OSGi...
      */
     @Override
-    @SuppressWarnings("unchecked")
     protected Enumeration<URL> findResources(String name) {
         final List<Enumeration<URL>> enumerations = new ArrayList<Enumeration<URL>>();
 
-        for (Bundle bundle : bundles) {
+        for (Bundle bundle : this.bundles) {
             try {
                 final Enumeration<URL> resources = bundle.getResources(name);
                 if (resources != null) {
@@ -157,7 +156,7 @@ public class OsgiClassLoader extends ClassLoader {
             }
         }
 
-        for (ClassLoader classLoader : classLoaders) {
+        for (ClassLoader classLoader : this.classLoaders) {
             try {
                 final Enumeration<URL> resources = classLoader.getResources(name);
                 if (resources != null) {
@@ -169,7 +168,6 @@ public class OsgiClassLoader extends ClassLoader {
 
         final Enumeration<URL> aggEnumeration = new Enumeration<URL>() {
 
-            @Override
             public boolean hasMoreElements() {
                 for (Enumeration<URL> enumeration : enumerations) {
                     if (enumeration != null && enumeration.hasMoreElements()) {
@@ -179,7 +177,6 @@ public class OsgiClassLoader extends ClassLoader {
                 return false;
             }
 
-            @Override
             public URL nextElement() {
                 for (Enumeration<URL> enumeration : enumerations) {
                     if (enumeration != null && enumeration.hasMoreElements()) {
@@ -195,43 +192,43 @@ public class OsgiClassLoader extends ClassLoader {
 
     /**
      * Adds a ClassLoader to the wrapped set of ClassLoaders
-     * 
+     *
      * @param classLoader
      *            The ClassLoader to add
      */
     public void addClassLoader(ClassLoader classLoader) {
-        classLoaders.add(classLoader);
+        this.classLoaders.add(classLoader);
     }
 
     /**
      * Removes a ClassLoader from the wrapped set of ClassLoaders.
-     * 
+     *
      * @param classLoader
      *            The ClassLoader to remove
      */
     public void removeClassLoader(ClassLoader classLoader) {
-        classLoaders.remove(classLoader);
+        this.classLoaders.remove(classLoader);
         clear();
     }
 
     /**
      * Adds a Bundle to the wrapped set of Bundles
-     * 
+     *
      * @param bundle
      *            The Bundle to add
      */
     public void addBundle(Bundle bundle) {
-        bundles.add(bundle);
+        this.bundles.add(bundle);
     }
 
     /**
      * Removes a Bundle from the wrapped set of bundles.
-     * 
+     *
      * @param bundle
      *            The bundle to remove
      */
     public void removeBundle(Bundle bundle) {
-        bundles.remove(bundle);
+        this.bundles.remove(bundle);
         clear();
     }
 
@@ -239,8 +236,8 @@ public class OsgiClassLoader extends ClassLoader {
      * Clear all resources.
      */
     public void clear() {
-        classCache.clear();
-        resourceCache.clear();
+        this.classCache.clear();
+        this.resourceCache.clear();
     }
 
 }

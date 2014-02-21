@@ -46,16 +46,19 @@ public class HibernateSessionFactoryService extends OsgiSessionFactoryService im
     private final OsgiClassLoader osgiClassLoader;
     private final OsgiJtaPlatform osgiJtaPlatform;
     private final BundleContext context;
-
+    private final OsgiServiceUtil osgiServiceUtil;
 
     public HibernateSessionFactoryService(final BundleContext context) throws Exception {
-        super(null, null, context);
+        super(null, null, null);
+        LOG.error("HALLO MARK");
         // build a ClassLoader that uses all the necessary OSGi bundles, and place it into
         // a well-known location so internals can access it
         this.osgiClassLoader = new OsgiClassLoader();
         this.osgiClassLoader.addBundle(FrameworkUtil.getBundle(Session.class));
         this.osgiClassLoader.addBundle(FrameworkUtil.getBundle(HibernatePersistenceProvider.class));
-        this.osgiJtaPlatform = new OsgiJtaPlatform(context);
+
+        this.osgiServiceUtil = new OsgiServiceUtil(context);
+        this.osgiJtaPlatform = new OsgiJtaPlatform(this.osgiServiceUtil);
         this.context = context;
     }
 
@@ -96,18 +99,18 @@ public class HibernateSessionFactoryService extends OsgiSessionFactoryService im
         builder.with(javassist.util.proxy.ProxyObject.class.getClassLoader());
         builder.with(org.hibernate.proxy.HibernateProxy.class.getClassLoader());
 
-        final Integrator[] integrators = OsgiServiceUtil.getServiceImpls(Integrator.class, this.context);
+        final Integrator[] integrators = this.osgiServiceUtil.getServiceImpls(Integrator.class);
         for (final Integrator integrator : integrators) {
             builder.with(integrator);
         }
 
-        final StrategyRegistrationProvider[] strategyRegistrationProviders = OsgiServiceUtil.getServiceImpls(
-                StrategyRegistrationProvider.class, this.context);
+        final StrategyRegistrationProvider[] strategyRegistrationProviders = this.osgiServiceUtil.getServiceImpls(
+                StrategyRegistrationProvider.class);
         for (final StrategyRegistrationProvider strategyRegistrationProvider : strategyRegistrationProviders) {
             builder.withStrategySelectors(strategyRegistrationProvider);
         }
 
-        final TypeContributor[] typeContributors = OsgiServiceUtil.getServiceImpls(TypeContributor.class, this.context);
+        final TypeContributor[] typeContributors = this.osgiServiceUtil.getServiceImpls(TypeContributor.class);
         for (final TypeContributor typeContributor : typeContributors) {
             configuration.registerTypeContributor(typeContributor);
         }
@@ -130,9 +133,9 @@ public class HibernateSessionFactoryService extends OsgiSessionFactoryService im
     }
 
     public void unregisterBundle(final Bundle requestingBundle) {
-        osgiClassLoader.removeBundle(requestingBundle);        
+        this.osgiClassLoader.removeBundle(requestingBundle);
     }
-    
+
     @SuppressWarnings("rawtypes")
     @Override
     public Object getService(final Bundle requestingBundle, final ServiceRegistration registration) {
